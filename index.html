@@ -730,11 +730,17 @@ function startGameAfterAudio() {
 }
 
 function playDefaultAudio() {
-    // Ensure muted state is off and apply it
     muted = false;
-    toggleMute(); // This will ensure the mute button icon is correct and try to resume audio context
-    // bgm.src is already set to default when it's declared, so no need to set it here again.
-    startGameAfterAudio(); // This will now play the default bgm
+    toggleMute(); // Ensure mute button is synced
+
+    setupAudioContext(); // <-- THIS IS WHAT YOU'RE MISSING
+    audioContext.resume().then(() => {
+        if (!muted) {
+            bgm.play().catch(e => console.error("Default BGM play error:", e));
+        }
+    });
+
+    startGameAfterAudio(); // Move after setting up audio
 }
 
 customAudioInput.addEventListener("change", e => {
