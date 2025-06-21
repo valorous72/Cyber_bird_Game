@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CyberBird - Ultra Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        html, body {
+            margin: 0; padding: 0; overflow: hidden;
+            font-family: 'Orbitron', sans-serif; background: #000;
+        }
+        canvas {
+            display: block;
+            background: #000;
+            border: 2px solid #00f6ff;
+            box-shadow: 0 0 25px #00f6ff;
+        }
+        .overlay, .menuPopup, .gameOverPopup, .audioPopup, .welcomePopup {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: none;
+            color: #00f6ff;
+            font-size: 20px; flex-direction: column;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .popup-content {
+            background: rgba(0, 10, 80, 0.8);
+            border: 2px solid #00f6ff;
+            box-shadow: 0 0 15px #00f6ff, 0 0 10px #00f6ff inset;
+            /* Adjusted padding to be slightly less */
+            padding: 15px; /* Reduced from 20px */
+            position: relative;
+            overflow: hidden;
+            pointer-events: auto;
+            /* Adjusted width and added max-width for responsiveness */
+            width: 260px; /* Reduced from 280px */
+            max-width: 90vw; /* Ensure it doesn't exceed 90% of viewport width */
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+
+            /* --- CYBERPUNK MODIFICATION: Skewed Popup --- */
+            transform: translateY(0) skewX(-15deg); /* Skew the entire popup */
+            box-shadow: 0 0 25px #00f6ff, 0 0 20px #00f6ff inset;
+        }
+        /* Solo Leveling inspired animations */
+        .overlay.visible .popup-content, .menuPopup.visible .popup-content,
+        .gameOverPopup.visible .popup-content, .audioPopup.visible .popup-content,
+        .welcomePopup.visible .popup-content {
+            animation: splitOpen 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
+        .overlay.closing .popup-content, .menuPopup.closing .popup-content,
+        .gameOverPopup.closing .popup-content, .audioPopup.closing .popup-content,
+        .welcomePopup.closing .popup-content {
+            animation: splitClose 0.3s ease-in forwards;
+        }
+
+        @keyframes splitOpen {
+            0% {
+                clip-path: polygon(0 50%, 100% 50%, 100% 50%, 0 50%);
+                opacity: 0;
+                transform: scaleY(0.8) translateY(20px) skewX(-15deg); /* Maintain skew */
+                filter: blur(5px) hue-rotate(90deg);
+            }
+            70% {
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+                opacity: 1;
+                transform: scaleY(1.05) translateY(-5px) skewX(-15deg); /* Maintain skew */
+                filter: blur(1px) hue-rotate(20deg);
+            }
+            100% {
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+                opacity: 1;
+                transform: scaleY(1) translateY(0) skewX(-15deg); /* Maintain skew */
+                filter: blur(0) hue-rotate(0deg);
+            }
+        }
+
+        @keyframes splitClose {
+            0% {
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+                opacity: 1;
+                transform: scaleY(1) skewX(-15deg); /* Maintain skew */
+                filter: blur(0);
+            }
+            30% {
+                opacity: 0.9;
+                transform: scaleY(0.98) translateY(2px) skewX(-15deg); /* Maintain skew */
+                filter: blur(2px) hue-rotate(30deg);
+            }
+            100% {
+                clip-path: polygon(0 50%, 100% 50%, 100% 50%, 0 50%);
+                opacity: 0;
+                transform: scaleY(0.7) translateY(25px) skewX(-15deg); /* Maintain skew */
+                filter: blur(7px) hue-rotate(120deg);
+            }
+        }
+
+        .popup-content::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('data:image/png;base64,i1wAAAAIAAAACCAYAAABytg0kAAAAFElEQVQImWNgYGBgYGD4//8/AQAI9gMHAAA1X4w/AAAAAElFTkSuQmCC');
+            opacity: 0.05;
+            pointer-events: none;
+        }
+        .popup-content::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        /* --- CYBERPUNK MODIFICATION: Counter-skew content inside popup --- */
+        .popup-content > * {
+            transform: translateY(10px) skewX(15deg); /* Counter-skew content */
+            opacity: 0;
+            transition: opacity 0.3s ease-out 0.2s, transform 0.3s ease-out 0.2s;
+        }
+        .visible .popup-content > * {
+            opacity: 1;
+            transform: translateY(0) skewX(0); /* On visible, reset content skew */
+        }
+
+        .cyber-btn {
+            margin: 8px;
+            padding: 10px 24px;
+            font-size: 16px;
+            border: 2px solid #00f6ff;
+            background: transparent;
+            color: #00f6ff;
+            text-shadow: 0 0 5px #00f6ff;
+            box-shadow: 0 0 10px #00f6ff;
+            cursor: pointer;
+            transition: 0.3s;
+            pointer-events: auto;
+            font-family: 'Orbitron', sans-serif;
+
+            /* --- CYBERPUNK MODIFICATION: Skewed Buttons --- */
+            transform: skewX(-15deg); /* Skew the button */
+            position: relative;
+        }
+        /* --- CYBERPUNK MODIFICATION: Counter-skew button text --- */
+        .cyber-btn span {
+            display: inline-block;
+            transform: skewX(15deg); /* Counter-skew the text */
+        }
+        .cyber-btn:hover {
+            background: #00f6ff;
+            color: black;
+            text-shadow: none;
+            box-shadow: 0 0 15px #00f6ff;
+            transform: translateY(-2px) skewX(-15deg); /* Maintain skew on hover */
+        }
+        .close-btn-area {
+            position: absolute;
+            top: 10px; right: 10px;
+            width: 40px; height: 40px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 100;
+        }
+        .close-btn {
+            background: transparent;
+            color: #f0f;
+            font-size: 24px;
+            border: none;
+            cursor: pointer;
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: auto;
+            text-shadow: 0 0 8px #f0f;
+        }
+        .close-btn:hover {
+            transform: scale(1.1);
+            color: #fff;
+            text-shadow: 0 0 12px #f0f, 0 0 20px #f0f;
+        }
+        #scoreDisplayContainer {
+            position: absolute;
+            top: 12px; right: 12px;
+            color: #00f6ff;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00f6ff;
+            z-index: 5;
+            text-align: right;
+        }
+        #score, #highScore {
+            margin-bottom: 5px;
+        }
+        #pauseBtn, #muteBtn {
+            position: absolute; left: 12px;
+            padding: 8px 12px; font-size: 16px;
+            background: #f0f; color: #000; border: none;
+            box-shadow: 0 0 10px #f0f;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            /* --- CYBERPUNK MODIFICATION --- */
+            transform: skewX(-10deg); /* Skew for effect */
+            text-shadow: 0 0 5px rgba(255,0,255,0.8);
+        }
+        #pauseBtn { top: 12px; }
+        #muteBtn {
+            top: 60px;
+            background: #00f6ff;
+            box-shadow: 0 0 10px #00f6ff;
+            text-shadow: 0 0 5px rgba(0,246,255,0.8);
+        }
+        #pauseBtn:hover, #muteBtn:hover {
+            box-shadow: 0 0 15px currentColor;
+            transform: translateY(-2px) skewX(-10deg); /* Maintain skew on hover */
+        }
+        .hidden { display: none !important; }
+
+        .custom-select-wrapper {
+            position: relative;
+            margin: 8px;
+            font-size: 16px;
+            color: #00f6ff;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .custom-select-wrapper .custom-select {
+            display: none !important;
+        }
+        .difficulty-selector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .difficulty-selector span {
+            font-size: 30px;
+            cursor: pointer;
+            color: #00f6ff;
+            text-shadow: 0 0 8px #00f6ff;
+            transition: transform 0.2s, text-shadow 0.2s;
+
+            /* --- CYBERPUNK MODIFICATION: Subtle Skew --- */
+            transform: skewX(-5deg); /* Subtle slant */
+        }
+        .difficulty-selector span:hover {
+            transform: scale(1.2) skewX(-5deg); /* Maintain skew on hover */
+            text-shadow: 0 0 15px #00f6ff, 0 0 25px rgba(0,246,255,0.5);
+        }
+        #currentDifficulty {
+            font-size: 22px;
+            margin: 5px 0;
+            padding: 5px 15px;
+            border: 1px solid #00f6ff;
+            border-radius: 5px;
+            background: rgba(0, 246, 255, 0.1);
+            text-shadow: 0 0 8px #00f6ff;
+        }
+
+        /* --- Welcome Popup Specific Styles (Further Adjusted for Size) --- */
+        #welcomePopup .popup-content h1 {
+            font-size: 30px; /* Reduced from 32px */
+            margin-bottom: 5px;
+        }
+        #welcomePopup .popup-content p {
+            font-size: 14px; /* Reduced from 16px */
+            margin-top: 5px;
+            margin-bottom: 10px; /* Adjusted margin */
+        }
+        #welcomePopup .popup-content h2 {
+            font-size: 20px; /* Reduced from 24px */
+            margin-top: 10px; /* Adjusted margin */
+            margin-bottom: 5px; /* Adjusted margin */
+        }
+
+        /* --- New styles for Power-Up Introduction --- */
+        .powerup-scroll-container {
+            max-height: 130px; /* Reduced from 150px to shorten popup length */
+            overflow-y: auto; /* Enable vertical scrolling */
+            width: 90%; /* Fit within popup */
+            border: 1px solid #00f6ff;
+            border-radius: 5px;
+            padding: 8px; /* Reduced padding */
+            margin-top: 10px;
+            margin-bottom: 15px; /* Adjusted margin */
+            background: rgba(0, 246, 255, 0.05); /* Subtle background */
+            box-shadow: inset 0 0 5px #00f6ff;
+        }
+
+        /* Custom scrollbar for WebKit browsers (Chrome, Safari, Edge) */
+        .powerup-scroll-container::-webkit-scrollbar {
+            width: 8px; /* Width of the scrollbar */
+        }
+
+        .powerup-scroll-container::-webkit-scrollbar-track {
+            background: rgba(0, 246, 255, 0.1); /* Track color */
+            border-radius: 10px;
+        }
+
+        .powerup-scroll-container::-webkit-scrollbar-thumb {
+            background: #00f6ff; /* Thumb color */
+            border-radius: 10px;
+        }
+
+        .powerup-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #77e0ff; /* Thumb color on hover */
+        }
+
+        .powerup-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px; /* Reduced margin */
+            padding: 4px; /* Reduced padding */
+            background: rgba(0, 100, 100, 0.2);
+            border-radius: 3px;
+        }
+
+        .powerup-item:last-child {
+            margin-bottom: 0; /* No margin after the last item */
+        }
+
+        .powerup-item canvas {
+            margin-right: 8px; /* Reduced margin */
+            flex-shrink: 0; /* Prevent canvas from shrinking */
+            border: 1px solid rgba(0, 246, 255, 0.5);
+            border-radius: 50%; /* Make the canvas circular */
+            box-shadow: 0 0 5px rgba(0, 246, 255, 0.7);
+        }
+
+        .powerup-item p {
+            font-size: 12px; /* Reduced from 13px for powerup descriptions */
+            color: #fff;
+            text-align: left;
+            margin: 0;
+        }
+
+        .powerup-item strong {
+            color: #00f6ff;
+            text-shadow: 0 0 5px #00f6ff;
+        }
+    </style>
+</head>
+<body>
+<div id="scoreDisplayContainer">
+    <div id="score">0</div>
+    <div id="highScore">Best: 0</div>
+</div>
+
+<button id="pauseBtn" onclick="pauseGame()">▶</button>
+<button id="muteBtn" onclick="toggleMute()">🔇</button>
+
+<div id="welcomePopup" class="welcomePopup hidden">
+    <div class="popup-content">
+        <h1 style="text-shadow: 0 0 15px #00f6ff;"><span>✨ CyberBird ✨</span></h1>
+        <p style="color: #f0f;"><span>Flap through the Cyberverse!</span></p>
+        <p style="color: #00f6ff;"><span>**Controls:** Press **SPACEBAR** or **TAP** to flap!</span></p>
+
+        <h2 style="color: #00f6ff; text-shadow: 0 0 8px #00f6ff;"><span>Power-Ups</span></h2>
+        <div id="powerupIntro" class="powerup-scroll-container">
+            <div class="powerup-item">
+                <canvas id="canvasNeonShield" width="40" height="40"></canvas>
+                <p><strong><span>Neon Shield:</span></strong> <span>Become invulnerable to one pipe collision!</span></p>
+            </div>
+            <div class="powerup-item">
+                <canvas id="canvasTimeWarp" width="40" height="40"></canvas>
+                <p><strong><span>Time Warp:</span></strong> <span>Slows down pipes and gravity for easy passage!</span></p>
+            </div>
+            <div class="powerup-item">
+                <canvas id="canvasGhostProtocol" width="40" height="40"></canvas>
+                <p><strong><span>Ghost Protocol:</span></b> <span>Pass through pipes for a short duration!</span></p>
+            </div>
+            <div class="powerup-item">
+                <canvas id="canvasRocketBurst" width="40" height="40"></canvas>
+                <p><strong><span>Rocket Burst:</span></strong> <span>Destroy any pipe you touch, and fly straight!</span></p>
+            </div>
+        </div>
+        <button class="cyber-btn" onclick="startWelcome()"><span>PLAY</span></button>
+    </div>
+</div>
+
+<div id="audioPopup" class="audioPopup hidden">
+    <div class="popup-content">
+        <div><span><strong>✨ CyberBird ✨</strong></span></div>
+        <p><span>Choose background music to start!</span></p>
+        <label for="customAudio" class="cyber-btn"><span>Upload Custom Music</span></label>
+        <input type="file" id="customAudio" accept="audio/*" style="display: none;" />
+        <button class="cyber-btn" onclick="playDefaultAudio()"><span>Play with Default Audio</span></button>
+    </div>
+</div>
+
+<div id="startPopup" class="overlay hidden">
+    <div class="popup-content">
+        <div><span><strong>✨ CyberBird ✨</strong></span></div>
+        <div id="showHigh"><span>Best: 0</span></div>
+        <button class="cyber-btn" onclick="newGame()"><span>New Game</span></button>
+        <button id="resumeBtn" class="cyber-btn hidden" onclick="resumeGame()"><span>Resume</span></button>
+        <button class="cyber-btn" onclick="openMenu()"><span>Menu</span></button>
+        <button class="cyber-btn" onclick="closeGame()"><span>Exit</span></button>
+    </div>
+</div>
+
+<div id="menuPopup" class="menuPopup hidden">
+    <div class="popup-content">
+        <div class="close-btn-area" id="closeBtnArea">
+            <button class="close-btn" onclick="closeMenu()"><span>←</span></button>
+        </div>
+        <div style="margin-bottom:10px;"><span><strong>⚙️ Settings</strong></span></div>
+        <div><span>FX Volume <input type="range" id="fxVol" min="0" max="1" step="0.1" value="0.2"></span></div>
+        <div><span>BGM Volume <input type="range" id="bgmVol" min="0" max="1" step="0.1" value="1"></span></div>
+        <div class="custom-select-wrapper">
+            <span>Difficulty</span>
+            <div class="difficulty-selector">
+                <span id="difficultyUp">▲</span>
+                <div id="currentDifficulty"></div>
+                <span id="difficultyDown">▼</span>
+            </div>
+            <select id="difficulty" class="custom-select">
+                <option value="easy">Easy</option>
+                <option value="normal" selected>Normal</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div id="gameOverPopup" class="gameOverPopup hidden">
+    <div class="popup-content">
+        <div><span>💥 GAME OVER 💥</span></div>
+        <div id="finalScore"></div>
+        <button class="cyber-btn" onclick="newGame()"><span>Restart</span></button>
+        <button class="cyber-btn" onclick="closeGame()"><span>Exit</span></button>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// --- Responsive Canvas & Game State ---
+let w, h; // Declared globally
+
+function resize() {
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Update global width/height variables
+    w = canvas.width;
+    h = canvas.height;
+
+    // If game is running and dimensions changed significantly, pause the game
+    if (running && (Math.abs(w - oldWidth) > 10 || Math.abs(h - oldHeight) > 10)) {
+        if (!paused) {
+            pauseGame();
+            showNotification("Screen size changed, game paused!", "#FFD700");
+        }
+        drawGameElementsForResize();
+    }
+}
+
+// Function to draw key elements without advancing game state, for immediate visual update on resize
+function drawGameElementsForResize() {
+    ctx.clearRect(0, 0, w, h);
+    drawBackground(); // Redraw background on resize
+    if (bird) bird.draw();
+    pipes.forEach(drawPipe);
+    drawPowerUps();
+    drawParticles();
+    drawNotification();
+    drawProgressBar();
+}
+
+window.addEventListener("resize", resize);
+
+// --- Game Assets & Elements ---
+let flapSfx = new Audio("sounds/flap.wav");
+let crashSfx = new Audio("sounds/crash.wav");
+let powerUpSfx = new Audio("sounds/powerup.wav");
+let shieldBreakSfx = new Audio("sounds/sheild_broke.wav");
+let rocketBurstSfx = new Audio("sounds/rocket");
+let popupOpenSfx = new Audio("sounds/open_popup");
+let popupCloseSfx = new Audio("sounds/close_popup");
+
+// DEFAULT BGM SOURCE HERE
+// You can replace this with a path to your own local file, e.g., "sounds/default_bgm.mp3"
+let bgm = new Audio("sounds/SoundHelix-Song-1.mp3"); // Example public domain music
+bgm.loop = true;
+
+const welcomePopup = document.getElementById("welcomePopup");
+const startPopup = document.getElementById("startPopup");
+const resumeBtn = document.getElementById("resumeBtn");
+const menuPopup = document.getElementById("menuPopup");
+const gameOverPopup = document.getElementById("gameOverPopup");
+const audioPopup = document.getElementById("audioPopup");
+const fxVol = document.getElementById("fxVol");
+const bgmVol = document.getElementById("bgmVol");
+const difficultySelect = document.getElementById("difficulty");
+const customAudioInput = document.getElementById("customAudio");
+const closeBtnArea = document.getElementById("closeBtnArea");
+
+const difficultyUpBtn = document.getElementById("difficultyUp");
+const difficultyDownBtn = document.getElementById("difficultyDown");
+const currentDifficultyDisplay = document.getElementById("currentDifficulty");
+
+let difficultyOptions = ["easy", "normal", "hard"];
+let difficultyIndex = 1;
+
+let muted = false;
+
+let GRAVITY = 0.42;
+let BASE_GRAVITY = 0.42;
+const FLAP = -8.2;
+let PIPE_GAP = 160;
+const PIPE_WIDTH = 60;
+const POWERUP_SIZE = 30;
+
+// --- Rarity Adjustment: All power-ups are now rarer ---
+const POWERUP_SPAWN_CHANCE = 0.05; // Reduced from 0.2 to 0.05 (5% chance per spawn attempt)
+
+const POWERUP_DURATION = 600;
+const ROCKET_BURST_DURATION = 300;
+const ROCKET_BURST_SPEED_MULTIPLIER = 3;
+
+let pipeSpeed = 2;
+let basePipeSpeed = 2;
+let basePipeGap = 160;
+let PIPE_GAP_current = basePipeGap;
+const MAX_SHIFT = 120;
+let bird, pipes, powerUps, score, frame, running, lastY, paused;
+let activePowerUps = [];
+let lastPowerUpType = null; // Tracks the last power-up type spawned
+let lastPopup = null;
+
+// --- THEME MANAGEMENT VARIABLES ---
+let currentThemeIndex = 0; // Tracks the current active theme
+let activeBirdColors = {}; // Stores the colors for the bird from the current theme
+let activePipeColors = {}; // Stores the colors for pipes from the current theme
+let activeVisualizerColors = {}; // Stores colors for the audio visualizer from the current theme
+
+// Define your Solo Leveling inspired themes here
+const themes = [
+    {
+        name: "Shadow Monarch",
+        bird: { baseHue: 220, hueRange: 50, saturation: 80, lightness: 60, trailHueOffset: 30, trailSaturation: 100, trailLightness: 50 },
+        pipe: { baseColor: '#1a1a1a', glowColors: ['#00f6ff', '#7b0099', '#3f005f'] }, // Cyan, Deep Purple, Darker Purple
+        visualizer: { baseHue: 200, topHue: 180, saturation: 80, lightnessBase: 20, lightnessMid: 40, lightnessTop: 60, alphaBase: 0.3, alphaMid: 0.2, alphaTop: 0.05, shadowColor: `hsl(190, 100%, 70%)` }
+    },
+    {
+        name: "Fiery Destruction",
+        bird: { baseHue: 0, hueRange: 30, saturation: 100, lightness: 60, trailHueOffset: -30, trailSaturation: 100, trailLightness: 50 },
+        pipe: { baseColor: '#300a0a', glowColors: ['#ff4500', '#ffa500', '#cc2000'] }, // Orange-red, Orange, Darker Red
+        visualizer: { baseHue: 20, topHue: 40, saturation: 100, lightnessBase: 30, lightnessMid: 50, lightnessTop: 70, alphaBase: 0.4, alphaMid: 0.3, alphaTop: 0.1, shadowColor: `hsl(30, 100%, 60%)` }
+    },
+    {
+        name: "Ancient Mana",
+        bird: { baseHue: 120, hueRange: 30, saturation: 70, lightness: 50, trailHueOffset: 20, trailSaturation: 90, trailLightness: 60 },
+        pipe: { baseColor: '#102a10', glowColors: ['#32cd32', '#00ff7f', '#008000'] }, // Lime Green, Spring Green, Green
+        visualizer: { baseHue: 130, topHue: 100, saturation: 80, lightnessBase: 25, lightnessMid: 45, lightnessTop: 65, alphaBase: 0.35, alphaMid: 0.25, alphaTop: 0.08, shadowColor: `hsl(110, 100%, 50%)` }
+    },
+    {
+        name: "Ruler's Authority",
+        bird: { baseHue: 40, hueRange: 20, saturation: 90, lightness: 70, trailHueOffset: -10, trailSaturation: 80, trailLightness: 80 },
+        pipe: { baseColor: '#252515', glowColors: ['#ffd700', '#daa520', '#bdb76b'] }, // Gold, Goldenrod, Dark Khaki
+        visualizer: { baseHue: 50, topHue: 60, saturation: 90, lightnessBase: 40, lightnessMid: 60, lightnessTop: 80, alphaBase: 0.4, alphaMid: 0.3, alphaTop: 0.1, shadowColor: `hsl(50, 100%, 70%)` }
+    },
+    // Add more themes here if you want! They will cycle automatically.
+];
+
+// --- New function to apply the current theme's colors ---
+function applyTheme() {
+    const theme = themes[currentThemeIndex % themes.length];
+    activeBirdColors = theme.bird;
+    activePipeColors = theme.pipe;
+    activeVisualizerColors = theme.visualizer;
+    document.getElementById("scoreDisplayContainer").style.color = activeVisualizerColors.shadowColor;
+    document.getElementById("scoreDisplayContainer").style.textShadow = `0 0 10px ${activeVisualizerColors.shadowColor}`;
+}
+
+
+if (closeBtnArea) {
+    function handleCloseClick(e) {
+        e.preventDefault();
+        const rect = closeBtnArea.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const clickX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clickY = e.touches && e.touches[0].clientY;
+        const distance = Math.sqrt((clickX - centerX) ** 2 + (clickY - centerY) ** 2);
+        if (distance <= 60) {
+            closeMenu();
+        }
+    }
+    closeBtnArea.addEventListener("click", handleCloseClick);
+    closeBtnArea.addEventListener("touchstart", handleCloseClick, { passive: false });
+}
+
+let particles = [];
+function addParticle(x, y, color, size = 5, life = 60, vx = (Math.random() - 0.5) * 4, vy = (Math.random() - 0.5) * 4) {
+    particles.push({ x, y, vx, vy, size: size + Math.random() * 5, life, color });
+}
+
+function addShieldBreakParticles(x, y) {
+    for (let i = 0; i < 30; i++) {
+        addParticle(x, y, `rgba(0, 255, 255, ${0.7 + Math.random() * 0.3})`, 2 + Math.random() * 4, 40 + Math.random() * 20, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+    }
+}
+
+function addPipeBreakParticles(collisionX, collisionY, particleColor) {
+    for (let i = 0; i < 50; i++) {
+        addParticle(collisionX, collisionY, particleColor, 3 + Math.random() * 5, 50 + Math.random() * 30, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
+    }
+}
+
+let notification = null;
+function showNotification(text, color) {
+    notification = { text, color, life: 120 };
+}
+
+let audioContext = null;
+let analyser, sourceNode, frequencyData;
+
+function toggleMute() {
+    muted = !muted;
+    bgm.muted = muted;
+    flapSfx.muted = muted;
+    crashSfx.muted = muted;
+    powerUpSfx.muted = muted;
+    shieldBreakSfx.muted = muted;
+    rocketBurstSfx.muted = muted;
+    popupOpenSfx.muted = muted;
+    popupCloseSfx.muted = muted;
+    document.getElementById("muteBtn").innerText = muted ? "🔊" : "🔇";
+
+    // If unmuting, try to resume context and play BGM for visualizer
+    if (!muted && bgm.src) {
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().catch(e => console.error("Error resuming audio context:", e));
+        }
+        bgm.play().catch(e => console.error("Error playing background music:", e));
+    } else {
+         bgm.pause(); // Pause BGM when muted
+    }
+}
+
+function setupAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (!analyser) {
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256; // Smaller FFT size for fewer, thicker bars
+        frequencyData = new Uint8Array(analyser.frequencyBinCount);
+    }
+    if (sourceNode) sourceNode.disconnect();
+    sourceNode = audioContext.createMediaElementSource(bgm);
+    sourceNode.connect(analyser);
+    analyser.connect(audioContext.destination);
+}
+
+function closeAllPopups() {
+    const popups = [welcomePopup, audioPopup, startPopup, menuPopup, gameOverPopup];
+    popups.forEach(popup => {
+        if (!popup.classList.contains("hidden")) {
+            popup.classList.remove("visible");
+            popup.classList.add("closing");
+            if (!muted) {
+                popupCloseSfx.volume = fxVol.value;
+                popupCloseSfx.currentTime = 0;
+                popupCloseSfx.playbackRate = 0.8 + Math.random() * 0.4;
+                popupCloseSfx.play().catch(() => {});
+            }
+            setTimeout(() => popup.classList.add("hidden"), 300);
+        }
+    });
+}
+
+function showPopup(popup) {
+    closeAllPopups();
+    setTimeout(() => {
+        popup.classList.remove("hidden", "closing");
+        if (popup === menuPopup) {
+            const closeArea = popup.querySelector(".close-btn-area");
+            if (closeArea) closeArea.style.display = "flex";
+        }
+        setTimeout(() => {
+            popup.classList.add("visible");
+            if (!muted) {
+                popupOpenSfx.volume = fxVol.value;
+                popupOpenSfx.currentTime = 0;
+                popupOpenSfx.playbackRate = 1.0 + Math.random() * 0.5;
+                popupOpenSfx.play().catch(() => {});
+            }
+        }, 10);
+    }, 300);
+}
+
+function hidePopup(popup) {
+    popup.classList.remove("visible");
+    popup.classList.add("closing");
+    if (!muted) {
+        popupCloseSfx.volume = fxVol.value;
+        popupCloseSfx.currentTime = 0;
+        popupCloseSfx.playbackRate = 0.8 + Math.random() * 0.4;
+        popupCloseSfx.play().catch(() => {});
+    }
+    setTimeout(() => popup.classList.add("hidden"), 300);
+}
+
+function startWelcome() {
+    hidePopup(welcomePopup);
+    setTimeout(() => {
+        showPopup(audioPopup);
+    }, 300);
+}
+
+function startGameAfterAudio() {
+    lastPopup = null;
+    hidePopup(audioPopup);
+    showPopup(startPopup);
+    let best = localStorage.getItem("cyberHigh") || 0;
+    document.getElementById("highScore").textContent = "Best: " + best;
+}
+
+function playDefaultAudio() {
+    // Ensure muted state is off and apply it
+    muted = false;
+    toggleMute(); // This will ensure the mute button icon is correct and try to resume audio context
+    // bgm.src is already set to default when it's declared, so no need to set it here again.
+    startGameAfterAudio(); // This will now play the default bgm
+}
+
+customAudioInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    bgm.src = url;
+
+    const loadTimeout = setTimeout(() => {
+        alert("Audio took too long to load or failed. Proceeding with muted audio.");
+        muted = true;
+        toggleMute();
+        startGameAfterAudio();
+    }, 5000);
+
+    bgm.addEventListener('loadedmetadata', () => {
+        clearTimeout(loadTimeout);
+        setupAudioContext(); // Setup analyser for new audio
+        audioContext.resume().then(() => {
+            if (!muted) {
+                bgm.play().then(() => {
+                    startGameAfterAudio();
+                }).catch(err => {
+                    alert("Failed to play audio after load. Proceeding with muted audio.");
+                    muted = true;
+                    toggleMute();
+                    startGameAfterAudio();
+                });
+            } else {
+                startGameAfterAudio();
+            }
+        }).catch(err => {
+            alert("Audio context failed to resume. Proceeding with muted audio.");
+            muted = true;
+            toggleMute();
+            startGameAfterAudio();
+        });
+    }, { once: true });
+
+    bgm.addEventListener('error', () => {
+        clearTimeout(loadTimeout);
+        alert("Failed to load audio file. Proceeding with muted audio.");
+        muted = true;
+        toggleMute();
+        startGameAfterAudio();
+    }, { once: true });
+});
+
+function initGame() {
+    bird = {
+        x: w * 0.25, y: h / 2, r: 20, vel: 0,
+        trail: [],
+        trailLength: 15,
+        update() {
+            this.vel += GRAVITY; this.vel *= 0.92;
+            this.y += this.vel;
+            if (this.y + this.r > h || this.y - this.r < 0) gameOver();
+            this.trail.unshift({ x: this.x, y: this.y });
+            if (this.trail.length > this.trailLength) this.trail.pop();
+        },
+        draw() {
+            // --- Solo Leveling: Shadow Monarch Bird Colors with Aura ---
+            // Cycles hue within a specific range for dark blue to purple
+            const birdHue = (activeBirdColors.baseHue + (Math.sin(frame * 0.03) + 1) * 0.5 * activeBirdColors.hueRange) % 360;
+
+            const birdColor = `hsl(${birdHue}, ${activeBirdColors.saturation}%, ${activeBirdColors.lightness}%)`;
+            const trailColor = `hsl(${birdHue + activeBirdColors.trailHueOffset}, ${activeBirdColors.trailSaturation}%, ${activeBirdColors.trailLightness}%)`;
+
+            // --- Strong Aura Effect ---
+            const auraColor = `hsl(${birdHue}, 100%, 70%)`; // Match the bird's hue for consistency
+            ctx.shadowBlur = 20 + Math.sin(frame * 0.1) * 10; // Pulsating aura
+            ctx.shadowColor = auraColor;
+
+            for (let i = 0; i < this.trail.length; i++) {
+                const pos = this.trail[i];
+                const alpha = 1 - (i / this.trailLength);
+                const segmentRadius = this.r * (1 - (i / (this.trailLength * 1.5)));
+                ctx.fillStyle = trailColor;
+                // Trail has its own subtle glow, distinct from bird's main aura
+                ctx.shadowBlur = 8 * alpha;
+                ctx.shadowColor = trailColor;
+                ctx.beginPath();
+                ctx.arc(pos.x - (this.r * (i / this.trailLength)), pos.y, segmentRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fillStyle = birdColor;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reset shadow after drawing bird (so other elements aren't affected)
+            ctx.shadowBlur = 0;
+
+            const activeShield = activePowerUps.find(p => p.type === "neonShield");
+            if (activeShield) {
+                ctx.strokeStyle = "#00f6ff";
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#00f6ff";
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r + 5, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            const activeGhost = activePowerUps.find(p => p.type === "ghostProtocol");
+            if (activeGhost) {
+                ctx.globalAlpha = 0.5 + Math.sin(frame * 0.2) * 0.2;
+                ctx.strokeStyle = "#99ff99";
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#99ff99";
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r + 8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+            }
+
+            const activeRocket = activePowerUps.find(p => p.type === "rocketBurst");
+            if (activeRocket) {
+                // --- Updated Rocket Burst flame color for better aesthetic ---
+                const fieryHue = (10 + Math.sin(frame * 0.2) * 20); // Cycles between 0 (red) and 30 (orange/yellow)
+                const flameColor = `hsl(${fieryHue}, 100%, 50%)`;
+
+                ctx.fillStyle = flameColor;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = flameColor;
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.r, this.y);
+                ctx.lineTo(this.x - this.r - 20 - Math.random() * 10, this.y - this.r / 2 + Math.random() * 5);
+                ctx.lineTo(this.x - this.r - 20 - Math.random() * 10, this.y + this.r / 2 - Math.random() * 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        },
+        flap() {
+            const activeRocket = activePowerUps.find(p => p.type === "rocketBurst");
+            if (activeRocket) {
+                this.vel = FLAP * 0.5;
+            } else {
+                this.vel = FLAP;
+            }
+            if (!muted) {
+                flapSfx.volume = fxVol.value;
+                flapSfx.currentTime = 0;
+                flapSfx.play().catch(() => {});
+            }
+        }
+    };
+    pipes = [];
+    powerUps = [];
+    activePowerUps = [];
+    particles = [];
+    notification = null;
+    score = 0;
+    frame = 0;
+    running = true;
+    paused = false;
+    lastY = h / 2 - PIPE_GAP_current / 2;
+    lastPowerUpType = null;
+    lastPopup = null;
+    currentThemeIndex = 0; // Reset theme index for new game
+    applyTheme(); // Apply initial theme
+    document.getElementById("score").textContent = 0;
+    document.getElementById("highScore").textContent = "Best: " + (localStorage.getItem("cyberHigh") || 0);
+
+
+    applySettings();
+    pipeSpeed = basePipeSpeed;
+    GRAVITY = BASE_GRAVITY;
+    PIPE_GAP_current = basePipeGap;
+    addPipe(true);
+
+    // --- Ensure audio restarts ---
+    if (!muted && bgm.src) {
+        bgm.currentTime = 0; // Reset audio to the beginning
+        if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().catch(e => console.error("Error resuming audio context:", e));
+        }
+        bgm.play().catch(e => console.error("Error playing background music:", e));
+    }
+}
+
+function newGame() {
+    hidePopup(startPopup);
+    hidePopup(gameOverPopup);
+    lastPopup = null;
+    applySettings();
+    initGame(); // initGame now handles audio playing
+    powerUps = [];
+    activePowerUps = [];
+    document.getElementById("pauseBtn").innerText = "⏸";
+    loop();
+}
+
+function resumeGame() {
+    paused = false;
+    hidePopup(startPopup);
+    lastPopup = null;
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+            if (!muted) bgm.play().catch(e => {});
+            document.getElementById("pauseBtn").innerText = "⏸";
+            loop();
+        }).catch(e => {});
+    } else {
+        if (!muted) bgm.play().catch(e => {});
+        document.getElementById("pauseBtn").innerText = "⏸";
+        loop();
+    }
+}
+
+function pauseGame() {
+    if (!running) return;
+    paused = true;
+    resumeBtn.classList.remove("hidden");
+    lastPopup = null;
+    showPopup(startPopup);
+    bgm.pause();
+    if (audioContext && audioContext.state === 'running') {
+        audioContext.suspend().catch(e => {});
+    }
+    document.getElementById("pauseBtn").innerText = "▶";
+}
+
+function openMenu() {
+    lastPopup = startPopup;
+    showPopup(menuPopup);
+    const closeArea = menuPopup.querySelector(".close-btn-area");
+    if (closeArea) closeArea.style.display = "flex";
+}
+
+function closeMenu() {
+    hidePopup(menuPopup);
+    if (lastPopup === startPopup) {
+        setTimeout(() => showPopup(startPopup), 300);
+    }
+    lastPopup = null;
+}
+
+function closeGame() {
+    alert("Thanks for playing!");
+    window.close();
+}
+
+function updateDifficultyDisplay() {
+    currentDifficultyDisplay.textContent = difficultyOptions[difficultyIndex].toUpperCase();
+    difficultySelect.value = difficultyOptions[difficultyIndex];
+}
+
+function changeDifficulty(direction) {
+    difficultyIndex = (difficultyIndex + direction + difficultyOptions.length) % difficultyOptions.length;
+    updateDifficultyDisplay();
+    applySettings();
+}
+
+function applySettings() {
+    bgm.volume = bgmVol.value;
+    const selectedDifficulty = difficultyOptions[difficultyIndex];
+    if (selectedDifficulty === "easy") {
+        basePipeSpeed = 1.5; basePipeGap = 180; BASE_GRAVITY = 0.35;
+    } else if (selectedDifficulty === "normal") {
+        basePipeSpeed = 2; basePipeGap = 160; BASE_GRAVITY = 0.42;
+    } else {
+        basePipeSpeed = 3; basePipeGap = 140; BASE_GRAVITY = 0.5;
+    }
+    pipeSpeed = basePipeSpeed;
+    GRAVITY = BASE_GRAVITY;
+    PIPE_GAP_current = basePipeGap;
+}
+
+bgmVol.addEventListener("input", () => {
+    bgm.volume = bgmVol.value;
+});
+
+fxVol.addEventListener("input", () => {
+});
+
+difficultyUpBtn.addEventListener("click", () => changeDifficulty(1));
+difficultyDownBtn.addEventListener("click", () => changeDifficulty(-1));
+
+function difficultyScale() {
+    const speedIncreasePer100 = 0.1;
+    const gapDecreasePer100 = 2;
+    const maxSpeed = basePipeSpeed + 2;
+    const minGap = basePipeGap - 50;
+    const difficultyFactor = Math.floor(score / 100);
+    pipeSpeed = Math.min(basePipeSpeed + (difficultyFactor * speedIncreasePer100), maxSpeed);
+    PIPE_GAP_current = Math.max(basePipeGap - (difficultyFactor * gapDecreasePer100), minGap);
+}
+
+function addPipe(isInitial = false) {
+    let offset = (Math.random() * MAX_SHIFT * 2) - MAX_SHIFT;
+    let top = Math.max(40, Math.min(h - PIPE_GAP_current - 80, lastY + offset));
+    lastY = top;
+    const initialX = isInitial ? w + 100 : w;
+
+    // Assign a glow color from the current theme when the pipe is created
+    const pipeGlowColors = activePipeColors.glowColors;
+    const randomGlowColor = pipeGlowColors[Math.floor(Math.random() * pipeGlowColors.length)];
+
+    pipes.push({ x: initialX, top, bottom: top + PIPE_GAP_current, scored: false, glowColor: randomGlowColor });
+}
+
+function addPowerUp() {
+    if (Math.random() > POWERUP_SPAWN_CHANCE) return;
+
+    // Weighted array for power-up selection
+    const weightedTypes = [
+        "neonShield", "neonShield", "neonShield", // More common
+        "timeWarp", "timeWarp", "timeWarp",       // More common
+        "ghostProtocol",                          // Rare
+        "rocketBurst"                             // Rare
+    ];
+
+    let type;
+    let attempts = 0;
+    const maxAttempts = 10; // Failsafe to prevent infinite loops
+
+    // Loop to ensure the chosen type is different from the last one
+    do {
+        type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
+        attempts++;
+    } while (type === lastPowerUpType && weightedTypes.length > 1 && attempts < maxAttempts);
+
+    // Update lastPowerUpType with the new type
+    lastPowerUpType = type;
+
+    const latestPipe = pipes[pipes.length - 1];
+    if (!latestPipe) return;
+    const safeMargin = POWERUP_SIZE + bird.r + 10;
+    const yMin = Math.max(50, latestPipe.top + safeMargin);
+    const yMax = Math.min(h - 50, latestPipe.bottom - safeMargin);
+    const y = yMin + Math.random() * (yMax - yMin);
+    const x = latestPipe.x + PIPE_WIDTH + 50;
+    powerUps.push({ x, y, type, size: POWERUP_SIZE, collected: false });
+}
+
+function activatePowerUp(type) {
+    if (!muted) {
+        if (type === "rocketBurst") {
+            rocketBurstSfx.volume = fxVol.value;
+            rocketBurstSfx.currentTime = 0;
+            rocketBurstSfx.play().catch(() => {});
+        } else {
+            powerUpSfx.volume = fxVol.value;
+            powerUpSfx.currentTime = 0;
+            powerUpSfx.play().catch(() => {});
+        }
+    }
+
+    let color, text, duration;
+    switch (type) {
+        case "neonShield":
+            color = "#00f6ff";
+            text = "Neon Shield Activated!";
+            duration = POWERUP_DURATION;
+            break;
+        case "timeWarp":
+            color = "#ff66ff";
+            text = "Time Warp Activated!";
+            duration = POWERUP_DURATION;
+            break;
+        case "ghostProtocol":
+            color = "#99ff99";
+            text = "Ghost Protocol Activated!";
+            duration = POWERUP_DURATION;
+            break;
+        case "rocketBurst":
+            color = "#ff8c00";
+            text = "Rocket Burst!";
+            duration = ROCKET_BURST_DURATION;
+            break;
+    }
+    showNotification(text, color);
+    for (let i = 0; i < 20; i++) addParticle(bird.x, bird.y, color);
+
+    let existingPowerUp = activePowerUps.find(p => p.type === type);
+    if (existingPowerUp) {
+        existingPowerUp.duration = duration;
+        existingPowerUp.maxDuration = duration;
+        if (type === "neonShield") existingPowerUp.hits = 0;
+    } else {
+        activePowerUps.push({ type: type, duration: duration, maxDuration: duration, hits: 0 });
+    }
+    updateGameplayModifiers();
+}
+
+function updateGameplayModifiers() {
+    let hasTimeWarp = activePowerUps.some(p => p.type === "timeWarp");
+    let hasRocketBurst = activePowerUps.some(p => p.type === "rocketBurst");
+
+    pipeSpeed = basePipeSpeed;
+    GRAVITY = BASE_GRAVITY;
+
+    if (hasTimeWarp) {
+        pipeSpeed = basePipeSpeed * 0.5;
+        GRAVITY = BASE_GRAVITY * 0.5;
+    }
+    if (hasRocketBurst) {
+        pipeSpeed = basePipeSpeed * ROCKET_BURST_SPEED_MULTIPLIER;
+        GRAVITY = 0;
+    }
+}
+
+// --- Background Drawing with Audio Visualization ---
+function drawBackground() {
+    ctx.fillStyle = "#000"; // Ensure background is black
+    ctx.fillRect(0, 0, w, h);
+
+    drawAudioVisualizer();
+}
+
+function drawAudioVisualizer() {
+    if (!analyser || muted || !bgm.src) return; // Only draw if analyser is ready, not muted, and BGM source is set
+
+    analyser.getByteFrequencyData(frequencyData);
+
+    const numVisualBars = 32;
+    const frequencyStep = Math.floor(analyser.frequencyBinCount / numVisualBars);
+    const baseBarWidth = w / numVisualBars;
+    const maxHeightFactor = 0.6; // Adjust this value (0 to 1) to control the maximum height
+    const minHeight = 5; // Slightly reduced minimum height
+
+    // Use current theme's visualizer colors
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = activeVisualizerColors.shadowColor;
+
+    for (let i = 0; i < numVisualBars; i++) {
+        let sumFrequency = 0;
+        for (let j = 0; j < frequencyStep; j++) {
+            sumFrequency += frequencyData[(i * frequencyStep) + j] || 0;
+        }
+        const frequencyValue = sumFrequency / (255 * frequencyStep); // Normalize to 0-1 based on step
+
+        const barHeight = minHeight + frequencyValue * (h * maxHeightFactor);
+
+        const xBase = i * baseBarWidth;
+        const taperFactor = 0.3 + frequencyValue * 0.4;
+        const topWidth = baseBarWidth * taperFactor;
+        const waveOffset = (Math.sin(frame * 0.05 + i * 0.3) * (baseBarWidth * 0.15));
+
+        const bottomXLeft = xBase;
+        const bottomXRight = xBase + baseBarWidth;
+        const topXLeft = xBase + (baseBarWidth - topWidth) / 2 + waveOffset;
+        const topXRight = topXLeft + topWidth;
+
+        // Gradient from bottom to the calculated top
+        const gradient = ctx.createLinearGradient(0, h, 0, h - barHeight);
+
+        // Use current theme's visualizer colors for gradient
+        gradient.addColorStop(0, `hsla(${activeVisualizerColors.baseHue}, ${activeVisualizerColors.saturation}%, ${activeVisualizerColors.lightnessBase}%, ${activeVisualizerColors.alphaBase})`);
+        gradient.addColorStop(0.5, `hsla(${(activeVisualizerColors.baseHue + activeVisualizerColors.topHue) / 2}, ${activeVisualizerColors.saturation}%, ${activeVisualizerColors.lightnessMid}%, ${activeVisualizerColors.alphaMid})`);
+        gradient.addColorStop(1, `hsla(${activeVisualizerColors.topHue}, ${activeVisualizerColors.saturation}%, ${activeVisualizerColors.lightnessTop}%, ${activeVisualizerColors.alphaTop})`);
+
+        ctx.fillStyle = gradient;
+
+        ctx.beginPath();
+        ctx.moveTo(bottomXLeft, h);
+        ctx.lineTo(bottomXRight, h);
+        ctx.lineTo(topXRight, h - barHeight);
+        ctx.lineTo(topXLeft, h - barHeight);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    // --- FIX: Reset ctx.fillStyle after drawing visualizer gradients ---
+    ctx.fillStyle = '#000';
+}
+
+function drawPipe(p) {
+    // Use the base pipe color from the current theme
+    ctx.fillStyle = activePipeColors.baseColor;
+    ctx.shadowBlur = 10 + Math.cos(frame / 10) * 10;
+    // Use the specific glow color assigned to this pipe when it was created
+    ctx.shadowColor = p.glowColor;
+
+    ctx.fillRect(p.x, 0, PIPE_WIDTH, p.top);
+    ctx.beginPath();
+    ctx.arc(p.x + PIPE_WIDTH / 2, p.top, PIPE_WIDTH / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillRect(p.x, p.bottom, PIPE_WIDTH, h - p.bottom);
+    ctx.beginPath();
+    ctx.arc(p.x + PIPE_WIDTH / 2, p.bottom, PIPE_WIDTH / 2, Math.PI * 2, 0);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+}
+
+function drawPowerUps() {
+    powerUps.forEach(pu => {
+        if (pu.collected) return;
+        let color;
+        switch (pu.type) {
+            case "neonShield":
+                color = "#00f6ff";
+                break;
+            case "timeWarp":
+                color = "#ff66ff";
+                break;
+            case "ghostProtocol":
+                color = "#99ff99";
+                break;
+            case "rocketBurst":
+                color = "#ff8c00";
+                break;
+        }
+        ctx.fillStyle = color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = color;
+        ctx.beginPath();
+        ctx.arc(pu.x, pu.y, pu.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+}
+
+// --- New function to draw individual power-up icons on static canvases ---
+function drawPowerUpIcon(canvasId, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const iconCtx = canvas.getContext("2d");
+    const size = canvas.width;
+    const radius = size / 2 - 2; // Subtract border width to ensure it fits
+
+    iconCtx.clearRect(0, 0, size, size); // Clear previous drawing
+    iconCtx.fillStyle = color;
+    iconCtx.shadowBlur = 8;
+    iconCtx.shadowColor = color;
+    iconCtx.beginPath();
+    iconCtx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+    iconCtx.fill();
+    iconCtx.shadowBlur = 0; // Reset shadow for other drawings
+}
+
+// --- Function to draw all power-up icons on the welcome screen ---
+function drawPowerUpIconsOnWelcome() {
+    drawPowerUpIcon("canvasNeonShield", "#00f6ff");
+    drawPowerUpIcon("canvasTimeWarp", "#ff66ff");
+    drawPowerUpIcon("canvasNeonShield", "#00f6ff");
+    drawPowerUpIcon("canvasTimeWarp", "#ff66ff");
+    drawPowerUpIcon("canvasGhostProtocol", "#99ff99");
+    drawPowerUpIcon("canvasRocketBurst", "#ff8c00");
+}
+
+
+function drawParticles() {
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        p.x += p.vx;
+        p.y += p.vy;
+        p.size *= 0.95;
+        p.life--;
+    });
+}
+
+function drawNotification() {
+    if (!notification) return;
+    ctx.font = "20px Orbitron";
+    ctx.fillStyle = notification.color;
+    ctx.globalAlpha = notification.life / 120;
+    ctx.fillText(notification.text, w / 2 - ctx.measureText(notification.text).width / 2, h / 4);
+    ctx.globalAlpha = 1;
+    notification.life--;
+    if (notification.life <= 0) notification = null;
+}
+
+function drawProgressBar() {
+    if (activePowerUps.length === 0) return;
+
+    const barWidth = 100;
+    const barHeight = 10;
+    const margin = 10;
+
+    activePowerUps.sort((a, b) => b.duration - a.duration);
+
+    for (let i = 0; i < activePowerUps.length; i++) {
+        const powerUp = activePowerUps[i];
+        const x = w - barWidth - margin;
+        const y = h - (barHeight + margin) * (i + 1);
+
+        const fillWidth = barWidth * (powerUp.duration / powerUp.maxDuration);
+
+        let barColor;
+        switch (powerUp.type) {
+            case "neonShield":
+                barColor = "#00f6ff";
+                break;
+            case "timeWarp":
+                barColor = "#ff66ff";
+                break;
+            case "ghostProtocol":
+                barColor = "#99ff99";
+                break;
+            case "rocketBurst":
+                barColor = "#ff8c00";
+                break;
+        }
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        ctx.fillStyle = barColor;
+        ctx.fillRect(x, y, fillWidth, barHeight);
+
+        ctx.strokeStyle = barColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barWidth, barHeight);
+    }
+}
+
+
+function updatePipes() {
+    // Check if a new pipe needs to be added
+    if (pipes.length === 0 || (pipes[pipes.length - 1].x < w - 250)) {
+        addPipe();
+        addPowerUp();
+    }
+
+    const hasGhostProtocol = activePowerUps.some(p => p.type === "ghostProtocol");
+    const hasRocketBurst = activePowerUps.some(p => p.type === "rocketBurst");
+
+    for (let i = pipes.length - 1; i >= 0; i--) {
+        let p = pipes[i];
+        p.x -= pipeSpeed;
+
+        // Scoring: Pipe is scored once it has passed the bird's X position
+        if (p.x + PIPE_WIDTH < bird.x && !p.scored) {
+            score++; // Increment score by 1 for each pipe passed
+            document.getElementById("score").textContent = score;
+            p.scored = true; // Mark pipe as scored
+            difficultyScale();
+
+            // --- Theme change logic ---
+            if (score > 0 && score % 100 === 0) { // Check if score is a multiple of 100
+                currentThemeIndex++;
+                applyTheme(); // Apply the new theme
+                showNotification(themes[currentThemeIndex % themes.length].name + " Activated!", activeVisualizerColors.shadowColor);
+            }
+        }
+
+        const collided = bird.x + bird.r > p.x &&
+                         bird.x - bird.r < p.x + PIPE_WIDTH &&
+                         (bird.y - bird.r < p.top || bird.y + bird.r > p.bottom);
+
+        if (collided) {
+            if (hasRocketBurst) {
+                addPipeBreakParticles(bird.x, bird.y, p.glowColor); // Particles originate from bird's position during collision
+                pipes.splice(i, 1); // Pipe is successfully destroyed
+                continue; // Continue to the next pipe in the loop
+            }
+
+            const activeShieldIndex = activePowerUps.findIndex(p => p.type === "neonShield");
+            if (activeShieldIndex !== -1) {
+                let activeShield = activePowerUps[activeShieldIndex];
+                activeShield.hits++;
+                addShieldBreakParticles(bird.x, bird.y);
+                if (!muted) {
+                    shieldBreakSfx.volume = fxVol.value;
+                    shieldBreakSfx.currentTime = 0;
+                    shieldBreakSfx.play().catch(() => {});
+                }
+                showNotification("Shield Broken!", "#00f6ff");
+                activePowerUps.splice(activeShieldIndex, 1);
+                updateGameplayModifiers();
+
+                pipes.splice(i, 1);
+                continue;
+            } else if (hasGhostProtocol) {
+                continue;
+            } else {
+                gameOver();
+                return;
+            }
+        }
+
+        if (p.x + PIPE_WIDTH < 0) pipes.splice(i, 1);
+    }
+
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+        let pu = powerUps[i];
+        pu.x -= pipeSpeed;
+        if (
+            !pu.collected &&
+            Math.abs(bird.x - pu.x) < bird.r + pu.size / 2 &&
+            Math.abs(bird.y - pu.y) < bird.r + pu.size / 2
+        ) {
+            pu.collected = true;
+            activatePowerUp(pu.type);
+        }
+        if (pu.x + pu.size < 0) powerUps.splice(i, 1);
+    }
+
+    for (let i = activePowerUps.length - 1; i >= 0; i--) {
+        activePowerUps[i].duration--;
+        if (activePowerUps[i].duration <= 0) {
+            activePowerUps.splice(i, 1);
+        }
+    }
+    updateGameplayModifiers();
+}
+
+function gameOver() {
+    running = false;
+    if (!muted) crashSfx.volume = fxVol.value, crashSfx.play().catch(() => {});
+    let high = localStorage.getItem("cyberHigh") || 0;
+    if (score > high) localStorage.setItem("cyberHigh", score);
+    document.getElementById("finalScore").textContent = `Score: ${score} | Best: ${Math.max(score, high)}`;
+    lastPopup = null;
+    showPopup(gameOverPopup);
+    bgm.pause();
+    if (audioContext && audioContext.state === 'running') {
+        audioContext.suspend().catch(e => {});
+    }
+    activePowerUps = [];
+    powerUps = [];
+    particles = [];
+    notification = null;
+    pipeSpeed = basePipeSpeed;
+    GRAVITY = BASE_GRAVITY;
+}
+
+function loop() {
+    if (!running || paused) return;
+    frame++;
+    ctx.clearRect(0, 0, w, h);
+
+    // --- Draw background FIRST ---
+    drawBackground();
+
+    bird.update();
+    bird.draw();
+    drawPowerUps();
+    drawParticles();
+    drawNotification();
+    pipes.forEach(drawPipe);
+    updatePipes();
+    drawProgressBar();
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener("keydown", e => { if (e.code === "Space") bird.flap(); });
+window.addEventListener("touchstart", e => {
+    // Only flap if not interacting with a popup or button
+    if (!e.target.closest(".popup-content, #pauseBtn, #muteBtn, .close-btn-area, .close-btn, .difficulty-selector span")) {
+        bird.flap();
+    }
+}, { passive: false });
+
+document.addEventListener('DOMContentLoaded', () => {
+    resize(); // Call resize immediately to set initial w and h
+    updateDifficultyDisplay();
+    applySettings();
+    applyTheme(); // Apply initial theme on DOM load
+    document.fonts.load('1em Orbitron').then(() => {
+        showPopup(welcomePopup);
+        // Draw power-up icons after the popup is visible or content is ready
+        drawPowerUpIconsOnWelcome();
+    });
+});
+
+</script>
+</body>
+</html>
