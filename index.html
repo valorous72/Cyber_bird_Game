@@ -484,10 +484,10 @@ window.addEventListener("resize", resize);
 let flapSfx = new Audio("sounds/flap.wav");
 let crashSfx = new Audio("sounds/crash.wav");
 let powerUpSfx = new Audio("sounds/powerup.wav");
-let shieldBreakSfx = new Audio("sounds/sheild_broke.wav");
-let rocketBurstSfx = new Audio("sounds/rocket");
-let popupOpenSfx = new Audio("sounds/open_popup");
-let popupCloseSfx = new Audio("sounds/close_popup");
+let shieldBreakSfx = new Audio("sounds/sheild_broke.ogg");
+let rocketBurstSfx = new Audio("sounds/rocket.ogg");
+let popupOpenSfx = new Audio("sounds/open_popup.ogg");
+let popupCloseSfx = new Audio("sounds/close_popup.ogg");
 
 // DEFAULT BGM SOURCE HERE
 // You can replace this with a path to your own local file, e.g., "sounds/default_bgm.mp3"
@@ -674,7 +674,7 @@ function closeAllPopups() {
             if (!muted) {
                 popupCloseSfx.volume = fxVol.value;
                 popupCloseSfx.currentTime = 0;
-                popupCloseSfx.playbackRate = 0.8 + Math.random() * 0.4;
+                popupCloseSfx.playbackRate = 1.0 + Math.random() * 0.5;
                 popupCloseSfx.play().catch(() => {});
             }
             setTimeout(() => popup.classList.add("hidden"), 300);
@@ -708,7 +708,7 @@ function hidePopup(popup) {
     if (!muted) {
         popupCloseSfx.volume = fxVol.value;
         popupCloseSfx.currentTime = 0;
-        popupCloseSfx.playbackRate = 0.8 + Math.random() * 0.4;
+        popupCloseSfx.playbackRate = 1.0 + Math.random() * 0.5;
         popupCloseSfx.play().catch(() => {});
     }
     setTimeout(() => popup.classList.add("hidden"), 300);
